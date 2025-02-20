@@ -15,7 +15,7 @@ class ML:
     Automates data preprocessing, model training, evaluation, and feature importance analysis.
     """
     
-    def __init__(self, df, target, dummies=True, test_size=0.3, scalate=True):
+    def __init__(self, df, target, model, dummies=True, test_size=0.3, scalate=True, grid=False, regression=False):
         """
         Initializes the ML class.
         
@@ -34,16 +34,13 @@ class ML:
         self.test_size = test_size
         self.X = df.drop(target, axis=1)
         self.y = df[target]
+        self.model = model
         self.scalate = scalate
+        self.regression = regression
+        self.grid = grid
         if dummies:
             self.X = pd.get_dummies(self.X)
         self.X_col = self.X.columns
-    def select_model(self,model,grid=False, regression=False):
-        self.model = model
-        self.regression = regression
-        self.grid = grid
-
-
     
     def __split(self):
         """Splits data into training and testing sets."""
