@@ -74,6 +74,25 @@ class ML:
         self.__fit()
         self.predictions = self.model.predict(self.X_test)
         return self.predictions
+    def predict_with_threshold(self,threshold=0.5, target_class=1):
+        """
+        Returns predictions based on a given threshold for a specific class.
+
+        Parameters:
+            threshold (float): Decision threshold for classification.
+            target_class (int): Class for which to apply the threshold.
+
+        Returns:
+            np.ndarray: Adjusted predictions.
+        """
+
+        # Get probability predictions
+        y_probs = self.model.predict_proba(self.X_test)[:, target_class]
+
+        # Apply the threshold
+        self.predictions = (y_probs >= threshold).astype(int)
+
+        return self.predictions
     
     def __regression_metrcis(self, show_results):
         """Computes regression performance metrics and plots predictions vs actual values."""
