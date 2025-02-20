@@ -61,6 +61,10 @@ class ML:
             self.model = self.grid_search.best_estimator_
         else:
             self.model.fit(self.X_train, self.y_train)
+    def __preprocess(self):
+        self.__split()
+        self.__scalate()
+        self.__fit()
     
     def predict(self):
         """
@@ -69,9 +73,7 @@ class ML:
         Returns:
         np.array: Model predictions.
         """
-        self.__split()
-        self.__scalate()
-        self.__fit()
+        self.__preprocess()
         self.predictions = self.model.predict(self.X_test)
         return self.predictions
     def predict_with_threshold(self,threshold=0.5, target_class=1):
@@ -85,7 +87,7 @@ class ML:
         Returns:
             np.ndarray: Adjusted predictions.
         """
-
+        self.__preprocess()
         # Get probability predictions
         y_probs = self.model.predict_proba(self.X_test)[:, target_class]
 
