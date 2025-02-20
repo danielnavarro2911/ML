@@ -77,7 +77,7 @@ class ML:
         self.predictions = self.model.predict(self.X_test)
         if save_predictions:
             return self.predictions
-    def predict_with_threshold(self,threshold=0.5, target_class=1,save_precitions=True):
+    def predict_with_threshold(self,threshold=0.5, target_class=1,save_predictions=True):
         """
         Returns predictions based on a given threshold for a specific class.
 
@@ -94,7 +94,7 @@ class ML:
 
         # Apply the threshold
         self.predictions = (y_probs >= threshold).astype(int)
-        if save_precitions:
+        if save_predictions:
             return self.predictions
     
     def __regression_metrcis(self, show_results):
