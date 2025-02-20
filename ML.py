@@ -66,7 +66,7 @@ class ML:
         self.__scalate()
         self.__fit()
     
-    def predict(self):
+    def predict(self,save_predictions=True):
         """
         Runs the full pipeline: splits data, scales features, trains the model, and makes predictions.
         
@@ -75,7 +75,8 @@ class ML:
         """
         self.__preprocess()
         self.predictions = self.model.predict(self.X_test)
-        return self.predictions
+        if save_predictions:
+            return self.predictions
     def predict_with_threshold(self,threshold=0.5, target_class=1):
         """
         Returns predictions based on a given threshold for a specific class.
