@@ -1,7 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.metrics import roc_curve, auc
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score,confusion_matrix,roc_curve, auc
 
 class BinaryReport:
     def __init__(self, ml_models):
@@ -13,7 +12,7 @@ class BinaryReport:
         """
         self.ml_models = ml_models
 
-    def plot(self):
+    def plot_ROC(self):
         """
         Plots the ROC curve for each model in the list of ML models.
         """
@@ -49,15 +48,17 @@ class BinaryReport:
 
     def get_metrics_dataframe(self):
         """
-        Generates a DataFrame containing classification metrics for each model.
+        Generates a DataFrame containing classification metrics for each model,
+        including Accuracy, Precision, Recall, F1 score, and Confusion Matrix values.
 
         Returns:
-        pd.DataFrame: DataFrame with metrics like Accuracy, Precision, Recall, and F1 score per model.
+        pd.DataFrame: DataFrame with metrics like Accuracy, Precision, Recall, F1 Score, 
+                    and Confusion Matrix values (TP, FP, FN, TN) per model.
         """
         # Get the test data from any of the models
         X_test = self.ml_models[0].X_test
         y_test = self.ml_models[0].y_test
-        
+
         metrics = []
 
         for ml_model in self.ml_models:
@@ -69,6 +70,11 @@ class BinaryReport:
             precision = precision_score(y_test, y_pred, average=None)  # Precision per class
             f1 = f1_score(y_test, y_pred, average=None)  # F1 score per class
 
+            # Compute confusion matrix
+            cm = confusion_matrix(y_test, y_pred)
+            # Extract values from confusion matrix
+            tn, fp, fn, tp = cm.ravel() if cm.shape == (2, 2) else (None, None, None, None)
+
             model_metrics = {
                 'Model': model_name,
                 'Accuracy': accuracy,
@@ -78,8 +84,12 @@ class BinaryReport:
                 'Precision (class 1)': precision[1] if len(precision) > 1 else None,
                 'F1 Score (class 0)': f1[0] if len(f1) > 0 else None,
                 'F1 Score (class 1)': f1[1] if len(f1) > 1 else None,
+                'True Positives (TP)': tp,
+                'False Positives (FP)': fp,
+                'False Negatives (FN)': fn,
+                'True Negatives (TN)': tn
             }
 
             metrics.append(model_metrics)
 
-        return pd.DataFrame(metrics)
+        return pd.DataFrame(metrics).T
