@@ -164,6 +164,7 @@ class ML:
         results = permutation_importance(self.model, self.X_test, self.y_test, scoring=scoring).importances_mean
         df_results = pd.DataFrame(data=[self.X_col, results * 100], index=['Column', 'Importance']).T
         df_results = df_results.sort_values('Importance', ascending=False)
+        df_results.reset_index(drop=True, inplace=True)
         
         if plot:
             if top==None:
