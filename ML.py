@@ -214,11 +214,12 @@ class DL(base):
                  epochs=20, batch_size=32,
                  stop_loss=True, patience=5, monitor='val_loss'):
         super().__init__(df, target, dummies, test_size, scalate)
-        from tensorflow.keras.callbacks import EarlyStopping
         import tensorflow as tf
-        from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import Dense
-        from tensorflow.keras.utils import to_categorical
+        
+        
+        
+        
+        
         self.neuronas = neuronas
         self.tipo = tipo.lower()
         self.epochs = epochs
@@ -229,6 +230,7 @@ class DL(base):
         self._preprocess()
 
     def _preprocess(self):
+        from tensorflow.keras.utils import to_categorical
         self._split()
         if self.scalate:
             self._scalate()
@@ -238,6 +240,8 @@ class DL(base):
             self.y_test = to_categorical(self.y_test)
 
     def _build_model(self):
+        from tensorflow.keras.models import Sequential
+        from tensorflow.keras.layers import Dense
         model = Sequential()
         input_dim = self.X_train.shape[1]
 
@@ -267,6 +271,7 @@ class DL(base):
         self.model = model
 
     def train(self):
+        from tensorflow.keras.callbacks import EarlyStopping
         self._build_model()
 
         callbacks = []
