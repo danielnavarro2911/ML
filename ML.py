@@ -42,11 +42,11 @@ class base:
             self.X = pd.get_dummies(self.X)
         self.X_col = self.X.columns
     
-    def __split(self):
+    def _split(self):
         """Splits data into training and testing sets."""
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size=self.test_size, random_state=42)
     
-    def __scalate(self):
+    def _scalate(self):
         """Standardizes numerical features if enabled."""
         self.scaler = StandardScaler()
         self.X_train = self.scaler.fit_transform(self.X_train)
@@ -91,8 +91,8 @@ class ML(base):
         else:
             self.model.fit(self.X_train, self.y_train)
     def __preprocess(self):
-        self.__split()
-        self.__scalate()
+        self._split()
+        self._scalate()
         self.__fit()
     
     def predict(self,save_predictions=True):
