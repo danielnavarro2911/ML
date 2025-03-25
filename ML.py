@@ -294,13 +294,13 @@ class DL(base):
         return self.history
 
     def predict(self, threshold=0.5):
-        y_pred = self.model.predict(self.X_test)
+        self.predictions = self.model.predict(self.X_test)
 
         if self.tipo == "binaria":
-            return (y_pred >= threshold).astype(int)
+            return (self.predictions >= threshold).astype(int)
         elif self.tipo == "multiclase":
-            return y_pred.argmax(axis=1)
+            return self.predictions.argmax(axis=1)
         elif self.tipo == "regresion":
-            return y_pred
+            return self.predictions
 
     
