@@ -206,4 +206,96 @@ class ML(base):
         return df_results
    
 
-   #aa
+
+
+class DL(base):
+    def __init__(self, df, target, neuronas, tipo,
+                 dummies=True, test_size=0.3, scalate=True,
+                 epochs=20, batch_size=32,
+                 stop_loss=True, patience=5, monitor='val_loss'):
+        super().__init__(df, target, dummies, test_size, scalate)
+        from tensorflow.keras.callbacks import EarlyStopping
+        import tensorflow as tf
+        from tensorflow.keras.models import Sequential
+        from tensorflow.keras.layers import Dense
+        from tensorflow.keras.utils import to_categorical
+        self.neuronas = neuronas
+        self.tipo = tipo.lower()
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.stop_loss = stop_loss
+        self.patience = patience
+        self.monitor = monitor
+        self._preprocess()
+
+    def _preprocess(self):
+        self._split()
+        if self.scalate:
+            self._scalate()
+
+        if self.tipo == "multiclase":
+            self.y_train = to_categorical(self.y_train)
+            self.y_test = to_categorical(self.y_test)
+
+    def _build_model(self):
+        model = Sequential()
+        input_dim = self.X_train.shape[1]
+
+        for i, n in enumerate(self.neuronas):
+            if i == 0:
+                model.add(Dense(n, input_dim=input_dim, activation='relu'))
+            else:
+                model.add(Dense(n, activation='relu'))
+
+        if self.tipo == "binaria":
+            model.add(Dense(1, activation='sigmoid'))
+            loss = 'binary_crossentropy'
+            metrics = ['accuracy']
+        elif self.tipo == "multiclase":
+            num_classes = self.y_train.shape[1]
+            model.add(Dense(num_classes, activation='softmax'))
+            loss = 'categorical_crossentropy'
+            metrics = ['accuracy']
+        elif self.tipo == "regresion":
+            model.add(Dense(1))
+            loss = 'mse'
+            metrics = ['mae']
+        else:
+            raise ValueError("Tipo debe ser 'binaria', 'multiclase' o 'regresion'.")
+
+        model.compile(optimizer='adam', loss=loss, metrics=metrics)
+        self.model = model
+
+    def train(self):
+        self._build_model()
+
+        callbacks = []
+        if self.stop_loss:
+            early_stop = EarlyStopping(
+                monitor=self.monitor,
+                patience=self.patience,
+                restore_best_weights=True
+            )
+            callbacks.append(early_stop)
+
+        self.history = self.model.fit(
+            self.X_train, self.y_train,
+            validation_data=(self.X_test, self.y_test),
+            epochs=self.epochs,
+            batch_size=self.batch_size,
+            callbacks=callbacks,
+            verbose=0
+        )
+        return self.history
+
+    def predict(self, threshold=0.5):
+        y_pred = self.model.predict(self.X_test)
+
+        if self.tipo == "binaria":
+            return (y_pred >= threshold).astype(int)
+        elif self.tipo == "multiclase":
+            return y_pred.argmax(axis=1)
+        elif self.tipo == "regresion":
+            return y_pred
+
+    
