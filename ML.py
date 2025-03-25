@@ -297,10 +297,10 @@ class DL(base):
         self.predictions = self.model.predict(self.X_test)
 
         if self.tipo == "binaria":
-            return (self.predictions >= threshold).astype(int)
+            self.predictions = (self.predictions >= threshold).astype(int)
+            
         elif self.tipo == "multiclase":
-            return self.predictions.argmax(axis=1)
-        elif self.tipo == "regresion":
-            return self.predictions
+            self.predictions= self.predictions.argmax(axis=1)
+        return self.predictions
 
     
