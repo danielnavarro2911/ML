@@ -9,13 +9,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
-class ML:
+
+class base:
     """
     A machine learning pipeline for classification and regression tasks.
     Automates data preprocessing, model training, evaluation, and feature importance analysis.
     """
     
-    def __init__(self, df, target, model, dummies=True, test_size=0.3, scalate=True, grid=False, regression=False):
+    def __init__(self, df, target, dummies=True, test_size=0.3, scalate=True):
         """
         Initializes the ML class.
         
@@ -34,10 +35,9 @@ class ML:
         self.test_size = test_size
         self.X = df.drop(target, axis=1)
         self.y = df[target]
-        self.model = model
         self.scalate = scalate
-        self.regression = regression
-        self.grid = grid
+        #self.regression = regression
+        #self.grid = grid
         if dummies:
             self.X = pd.get_dummies(self.X)
         self.X_col = self.X.columns
@@ -51,6 +51,35 @@ class ML:
         self.scaler = StandardScaler()
         self.X_train = self.scaler.fit_transform(self.X_train)
         self.X_test = self.scaler.transform(self.X_test)
+
+
+
+
+class ML(base):
+    """
+    A machine learning pipeline for classification and regression tasks.
+    Automates data preprocessing, model training, evaluation, and feature importance analysis.
+    """
+    
+    def __init__(self, df, target, model, dummies=True, test_size=0.3, scalate=True, grid=False, regression=False):
+        super().__init__(df,target,dummies,test_size,scalate)
+        """
+        Initializes the ML class.
+        
+        Parameters:
+        df (pd.DataFrame): Dataset.
+        target (str): Target variable name.
+        model (estimator): Machine learning model.
+        dummies (bool): Whether to convert categorical variables to dummy variables (default: True).
+        test_size (float): Test dataset proportion (default: 0.3).
+        scalate (bool): Whether to standardize features (default: True).
+        grid (dict or bool): Grid search parameter grid (default: False).
+        regression (bool): Defines if task is regression (default: False).
+        """
+
+        self.model = model
+        self.regression = regression
+        self.grid = grid
     
     def __fit(self):
         """Fits the model, applying GridSearchCV if specified."""
