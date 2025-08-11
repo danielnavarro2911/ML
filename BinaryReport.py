@@ -1,6 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score,confusion_matrix,roc_curve, auc
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score,confusion_matrix,roc_curve, auc,roc_auc_score,precision_recall_curve, average_precision_score
+
+
 
 class BinaryReport:
     def __init__(self, ml_models):
@@ -46,6 +48,36 @@ class BinaryReport:
 
         plt.show()
 
+    def plot_PR(self):
+        """
+        Plots the Precision-Recall curve for each model in the list of ML models.
+        """
+        X_test = self.ml_models[0].X_test
+        y_test = self.ml_models[0].y_test
+
+        plt.figure(figsize=(10, 8))
+
+        for ml_model in self.ml_models:
+            # Probabilidades para la clase 1
+            y_prob = ml_model.model.predict_proba(X_test)[:, 1]
+
+            # Calcular precision, recall y average precision
+            precision, recall, _ = precision_recall_curve(y_test, y_prob)
+            ap_score = average_precision_score(y_test, y_prob)
+
+            # Graficar la curva
+            plt.plot(recall, precision, lw=2,
+                     label=f'{ml_model.model.__class__.__name__} (AP = {ap_score:.2f})')
+
+        # Configuración del gráfico
+        plt.xlabel('Recall')
+        plt.ylabel('Precision')
+        plt.title('Precision–Recall Curves of Models')
+        plt.legend(loc="lower left")
+        plt.grid(True)
+        plt.show()
+    
+
     def get_metrics_dataframe(self):
         """
         Generates a DataFrame containing classification metrics for each model,
@@ -70,6 +102,12 @@ class BinaryReport:
             precision = precision_score(y_test, y_pred, average=None)  # Precision per class
             f1 = f1_score(y_test, y_pred, average=None)  # F1 score per class
 
+            try:
+                y_proba = ml_model.model.predict_proba(X_test)[:, 1]  # Probabilidad de clase 1
+                auc = roc_auc_score(y_test, y_proba)
+            except Exception:
+                auc = None
+
             # Compute confusion matrix
             cm = confusion_matrix(y_test, y_pred)
             # Extract values from confusion matrix
@@ -87,7 +125,8 @@ class BinaryReport:
                 'True Positives (TP)': tp,
                 'False Positives (FP)': fp,
                 'False Negatives (FN)': fn,
-                'True Negatives (TN)': tn
+                'True Negatives (TN)': tn,
+                "AUC (Class 1)":auc
             }
 
             metrics.append(model_metrics)
