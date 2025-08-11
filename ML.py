@@ -2,67 +2,27 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.inspection import permutation_importance
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix,recall_score
 
+from imblearn.over_sampling import SMOTE
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+import functools
+from sklearn.feature_selection import RFECV
+from sklearn.model_selection import StratifiedKFold, KFold
 
-
-class base:
+    
+class ML():
     """
     A machine learning pipeline for classification and regression tasks.
     Automates data preprocessing, model training, evaluation, and feature importance analysis.
     """
     
-    def __init__(self, df, target, dummies=True, test_size=0.3, scalate=True):
-        """
-        Initializes the ML class.
-        
-        Parameters:
-        df (pd.DataFrame): Dataset.
-        target (str): Target variable name.
-        model (estimator): Machine learning model.
-        dummies (bool): Whether to convert categorical variables to dummy variables (default: True).
-        test_size (float): Test dataset proportion (default: 0.3).
-        scalate (bool): Whether to standardize features (default: True).
-        grid (dict or bool): Grid search parameter grid (default: False).
-        regression (bool): Defines if task is regression (default: False).
-        """
-        self.df = df
-        self.target = target
-        self.test_size = test_size
-        self.X = df.drop(target, axis=1)
-        self.y = df[target]
-        self.scalate = scalate
-        #self.regression = regression
-        #self.grid = grid
-        if dummies:
-            self.X = pd.get_dummies(self.X)
-        self.X_col = self.X.columns
-    
-    def _split(self):
-        """Splits data into training and testing sets."""
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size=self.test_size, random_state=42)
-    
-    def _scalate(self):
-        """Standardizes numerical features if enabled."""
-        self.scaler = StandardScaler()
-        self.X_train = self.scaler.fit_transform(self.X_train)
-        self.X_test = self.scaler.transform(self.X_test)
+    def __init__(self, df, target, model, dummies=True, test_size=0.3, scalate=True,
+             grid=False, regression=False, balance=False, split_index=None):
 
-
-
-
-class ML(base):
-    """
-    A machine learning pipeline for classification and regression tasks.
-    Automates data preprocessing, model training, evaluation, and feature importance analysis.
-    """
-    
-    def __init__(self, df, target, model, dummies=True, test_size=0.3, scalate=True, grid=False, regression=False):
-        super().__init__(df,target,dummies,test_size,scalate)
         """
         Initializes the ML class.
         
@@ -80,6 +40,46 @@ class ML(base):
         self.model = model
         self.regression = regression
         self.grid = grid
+
+        self.df = df
+        self.target = target
+        self.test_size = test_size
+        self.X = df.drop(target, axis=1)
+        self.y = df[target]
+        self.scalate = scalate
+        #self.regression = regression
+        #self.grid = grid
+        if dummies:
+            self.X = pd.get_dummies(self.X)
+        self.X_col = self.X.columns
+
+  
+        self.split_index = split_index 
+
+        self.balance=balance
+    def _split(self):
+        """Splits data into training and testing sets."""
+        if self.split_index is not None:
+            self.X_train, self.X_test = self.X.iloc[:self.split_index], self.X.iloc[self.split_index:]
+            self.y_train, self.y_test = self.y.iloc[:self.split_index], self.y.iloc[self.split_index:]
+        else:
+            if not self.regression:
+                self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
+                    self.X, self.y, test_size=self.test_size, random_state=42, stratify=self.y)
+            else:
+                self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
+                    self.X, self.y, test_size=self.test_size, random_state=4)
+
+
+        if self.balance:
+            smote = SMOTE(random_state=42)
+            self.X_train, self.y_train = smote.fit_resample(self.X_train, self.y_train)
+        
+    def _scalate(self):
+        """Standardizes numerical features if enabled."""
+        self.scaler = StandardScaler()
+        self.X_train = self.scaler.fit_transform(self.X_train)
+        self.X_test = self.scaler.transform(self.X_test)
     
     def __fit(self):
         """Fits the model, applying GridSearchCV if specified."""
@@ -119,10 +119,10 @@ class ML(base):
         """
         self.__preprocess()
         # Get probability predictions
-        y_probs = self.model.predict_proba(self.X_test)[:, target_class]
+        self.y_probs = self.model.predict_proba(self.X_test)[:, target_class]
 
         # Apply the threshold
-        self.predictions = (y_probs >= threshold).astype(int)
+        self.predictions = (self.y_probs >= threshold).astype(int)
         if save_predictions:
             return self.predictions
     
@@ -204,103 +204,106 @@ class ML(base):
             plt.show()
         
         return df_results
+    def variables_importance_threshold(self, threshold=0.5, target_class=1, plot=True, top=None):
+        """
+        Calculates permutation importance using a custom threshold for classification.
+
+        Parameters:
+        threshold (float): Threshold to apply on predicted probabilities.
+        target_class (int): The class for which recall is being optimized.
+        plot (bool): Whether to plot the importance chart.
+        top (int): How many top variables to plot.
+
+        Returns:
+        pd.DataFrame: Sorted feature importances based on custom scoring.
+        """
+
+        def custom_recall(model, X, y_true):
+            y_probs = model.predict_proba(X)[:, target_class]
+            y_pred = (y_probs >= threshold).astype(int)
+            return recall_score(y_true, y_pred)
+
+        scorer = functools.partial(custom_recall)
+        results = permutation_importance(self.model, self.X_test, self.y_test, scoring=scorer)
+
+        df_results = pd.DataFrame(data=[self.X_col, results.importances_mean * 100], index=['Column', 'Importance']).T
+        df_results = df_results.sort_values('Importance', ascending=False).reset_index(drop=True)
+
+        if plot:
+            if top is None:
+                top = len(df_results)
+            plt.figure(figsize=(20, 8))
+            sns.barplot(data=df_results.head(top), x='Column', y='Importance')
+            plt.xticks(rotation=90)
+            plt.title(f'Variable importance (threshold = {threshold})')
+            plt.show()
+
+        return df_results
+    
+    def feature_selection_rfecv(self, scoring='recall', min_features_to_select=10, cv=10, show_plot=True,predict=False):
+        """
+        Performs feature selection using RFECV on the full dataset and stores the selected features.
+
+        Parameters:
+        scoring (str): Scoring metric to optimize (e.g. 'recall', 'accuracy', 'f1').
+        min_features_to_select (int): Minimum number of features to retain.
+        cv (int): Number of cross-validation folds (default is 5).
+        show_plot (bool): Whether to plot performance vs. number of features.
+
+        Returns:
+        list: Selected feature names.
+        """
+
+        X = self.X.copy()
+        y = self.y.copy()
+
+        # Optionally scale
+        if self.scalate:
+            scaler = StandardScaler()
+            X = scaler.fit_transform(X)
+        else:
+            X = X.values
+      
+        # Choose CV strategy
+        if self.regression:
+            cv_strategy = KFold(n_splits=cv, shuffle=True, random_state=42)
+        else:
+            cv_strategy = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
+        
+
+        # Run RFECV using the model from the instance
+        selector = RFECV(
+            estimator=self.model,
+            step=1,
+            cv=cv,
+            scoring=scoring,
+            min_features_to_select=min_features_to_select
+        )
+
+        selector.fit(X, y)
+
+        # Save results
+        self.selected_features_rfecv = self.X.columns[selector.support_].tolist()
+        self.rfecv_selector = selector
+
    
 
-
-
-class DL(base):
-    def __init__(self, df, target, neuronas, tipo,
-                 dummies=True, test_size=0.3, scalate=True,
-                 epochs=20, batch_size=32,
-                 stop_loss=True, patience=5, monitor='val_loss'):
-        super().__init__(df, target, dummies, test_size, scalate)
-        import tensorflow as tf
-        
-        
-        
-        
-        
-        self.neuronas = neuronas
-        self.tipo = tipo.lower()
-        self.epochs = epochs
-        self.batch_size = batch_size
-        self.stop_loss = stop_loss
-        self.patience = patience
-        self.monitor = monitor
-        self._preprocess()
-
-    def _preprocess(self):
-        from tensorflow.keras.utils import to_categorical
-        self._split()
-        if self.scalate:
-            self._scalate()
-
-        if self.tipo == "multiclase":
-            self.y_train = to_categorical(self.y_train)
-            self.y_test = to_categorical(self.y_test)
-
-    def _build_model(self):
-        from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import Dense
-        model = Sequential()
-        input_dim = self.X_train.shape[1]
-
-        for i, n in enumerate(self.neuronas):
-            if i == 0:
-                model.add(Dense(n, input_dim=input_dim, activation='relu'))
-            else:
-                model.add(Dense(n, activation='relu'))
-
-        if self.tipo == "binaria":
-            model.add(Dense(1, activation='sigmoid'))
-            loss = 'binary_crossentropy'
-            metrics = ['accuracy']
-        elif self.tipo == "multiclase":
-            num_classes = self.y_train.shape[1]
-            model.add(Dense(num_classes, activation='softmax'))
-            loss = 'categorical_crossentropy'
-            metrics = ['accuracy']
-        elif self.tipo == "regresion":
-            model.add(Dense(1))
-            loss = 'mse'
-            metrics = ['mae']
-        else:
-            raise ValueError("Tipo debe ser 'binaria', 'multiclase' o 'regresion'.")
-
-        model.compile(optimizer='adam', loss=loss, metrics=metrics)
-        self.model = model
-
-    def train(self):
-        from tensorflow.keras.callbacks import EarlyStopping
-        self._build_model()
-
-        callbacks = []
-        if self.stop_loss:
-            early_stop = EarlyStopping(
-                monitor=self.monitor,
-                patience=self.patience,
-                restore_best_weights=True
-            )
-            callbacks.append(early_stop)
-
-        self.history = self.model.fit(
-            self.X_train, self.y_train,
-            validation_data=(self.X_test, self.y_test),
-            epochs=self.epochs,
-            batch_size=self.batch_size,
-            callbacks=callbacks,
-            verbose=0
-        )
-        return self.history
-
-    def predict(self, threshold=0.5):
-        self.predictions = self.model.predict(self.X_test)
-
-        if self.tipo == "binaria":
-            self.predictions = (self.predictions >= threshold).astype(int)
-            
-        elif self.tipo == "multiclase":
-            self.predictions= self.predictions.argmax(axis=1)
-        return self.predictions
+        # Optional plot
+        if show_plot:
+            import matplotlib.pyplot as plt
+            plt.figure(figsize=(10, 5))
+            scores = selector.cv_results_['mean_test_score']
+            plt.plot(range(1, len(scores) + 1), scores)
+            plt.xlabel("Número de variables seleccionadas")
+            plt.ylabel("Puntaje promedio (validación cruzada)")
+            plt.title("Desempeño según número de variables")
+            plt.grid(True)
+            plt.show()
 
     
+
+        return self.selected_features_rfecv
+    
+
+
+
